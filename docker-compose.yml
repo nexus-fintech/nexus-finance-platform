@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # 1. Base de Datos (MySQL)
+  nexus-db:
+    image: mysql:8.0
+    container_name: nexus-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: nexusdb
+    ports:
+      - "3307:3306" # Mapeamos al 3307 en tu PC para no chocar si tienes Workbench abierto en el 3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - nexus-network
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # 2. Risk Engine (Microservicio Python)
+  nexus-risk-engine:
+    build: ./nexus-risk-engine
+    container_name: nexus-risk-engine
+    ports:
+      - "8000:8000"
+    networks:
+      - nexus-network
+
+  # 3. Backend Core (Spring Boot)
+  nexus-backend:
+    build: ./nexus-backend-core
+    container_name: nexus-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      nexus-db:
+        condition: service_healthy
+      nexus-risk-engine:
+        condition: service_started
+    environment:
+      # --- AQUÍ SOBRESCRIBIMOS TU APPLICATION.PROPERTIES ---
+      # Cambiamos 'localhost' por 'nexus-db'
+      SPRING_DATASOURCE_URL: jdbc:mysql://nexus-db:3306/nexusdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      # Cambiamos 'localhost' por 'nexus-risk-engine' para Feign Client
+      RISK_ENGINE_URL: http://nexus-risk-engine:8000/api/v1
+    networks:
+      - nexus-network
+
+volumes:
+  mysql_data:
+
+networks:
+  nexus-network:
+    driver: bridge
