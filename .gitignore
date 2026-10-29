@@ -1,0 +1,9 @@
+# Los servicios se clonan dentro de esta carpeta para construirlos; cada uno tiene su repositorio
+/nexus-backend-core/
+/nexus-risk-engine/
+/nexus-frontend-web/
+
+# Secretos y configuración local: nunca se suben
+.env
+.env.*
+!.env.example
