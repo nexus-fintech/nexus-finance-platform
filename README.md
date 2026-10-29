@@ -1,6 +1,8 @@
-# **Nexus Finance \- Enterprise Microcredit Platform 🚀**
+# **Nexus Finance - Enterprise Microcredit Platform 🚀**
 
-**Plataforma SaaS distribuida para la gestión inteligente de microcréditos, integrando un Core Bancario en Java con un Motor de Riesgo basado en IA (Python).**
+[![CI](https://github.com/nexus-fintech/nexus-finance-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/nexus-fintech/nexus-finance-platform/actions/workflows/ci.yml)
+
+**Plataforma distribuida para la gestión de microcréditos: un core bancario en Java y un motor de riesgo con IA en Python, orquestados con Docker Compose.**
 
 ## **📋 Visión General del Sistema**
 
@@ -8,78 +10,89 @@
 
 ### **🏗️ Arquitectura de Contenedores**
 
-El sistema se compone de 3 servicios orquestados que se comunican en una red privada:
-
-```bash
+```mermaid
 graph LR
-    A\[Client (Postman/Web)\] \--\>|HTTP REST| B(nexus-backend-core)
-    B \--\>|JDBC| C\[(nexus-db)\]
-    B \--\>|Internal HTTP/Feign| D(nexus-risk-engine)`
+    A["Cliente (web o Postman)"] -->|HTTP REST + JWT| B(nexus-backend-core)
+    B -->|JDBC| C[(nexus-db)]
+    B -->|HTTP interno / Feign| D(nexus-risk-engine)
 ```
 
-1. **nexus-backend-core (Spring Boot 3.4):**
-   - Gestión de Clientes y Préstamos (DDD/CQRS).
-   - Cálculo de Amortización (Sistema Francés).
-   - Orquestador de la transacción.
-2. **nexus-risk-engine (Python FastAPI):**
-   - Microservicio _stateless_.
-   - Evalúa reglas heurísticas (Ingresos vs Deuda, Edad, Historial) para determinar el CreditScore.
-3. **nexus-db (MySQL 8.0):**
-   - Persistencia relacional robusta para el núcleo transaccional.
+1. **nexus-backend-core (Spring Boot 3.4):** clientes y préstamos (DDD/CQRS), amortización con el sistema francés, seguridad con JWT y la orquestación de la aprobación.
+2. **nexus-risk-engine (Python FastAPI):** microservicio sin estado. Un Random Forest estima la probabilidad de aprobación y reglas de negocio fijan el puntaje, la tasa y el monto máximo.
+3. **nexus-db (MySQL 8.0):** persistencia del core transaccional.
 
-## **🚀 Guía de Inicio Rápido (Despliegue)**
+| Repositorio | Qué contiene |
+| :--- | :--- |
+| [nexus-backend-core](https://github.com/nexus-fintech/nexus-backend-core) | Core bancario en Java |
+| [nexus-risk-engine](https://github.com/nexus-fintech/nexus-risk-engine) | Motor de riesgo en Python |
+| [nexus-frontend-web](https://github.com/nexus-fintech/nexus-frontend-web) | Aplicación web en Angular |
+| nexus-finance-platform (este) | Orquestación, configuración y la prueba de punta a punta |
+
+## **🚀 Guía de Inicio Rápido**
 
 ### **Prerrequisitos**
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop) instalado y corriendo.
-- Git.
+- Docker con Compose.
+- Git, y Python 3 para la prueba de punta a punta.
 
-### **Pasos para Ejecutar**
+### **Pasos**
 
-1. **Clonar el Repositorio:**  
-   git clone \[https://github.com/tu-usuario/nexus-finance.git\](https://github.com/tu-usuario/nexus-finance.git)  
-   cd nexus-finance
+```bash
+git clone https://github.com/nexus-fintech/nexus-finance-platform.git
+cd nexus-finance-platform
+# Los servicios se clonan aquí dentro; el .gitignore los excluye
+git clone https://github.com/nexus-fintech/nexus-backend-core.git
+git clone https://github.com/nexus-fintech/nexus-risk-engine.git
 
-2. Levantar el Ecosistema:  
-   Ejecuta el orquestador. Esto compilará el código Java y Python, construirá las imágenes y levantará los contenedores.  
-   docker-compose up \--build
+cp .env.example .env      # completa las contraseñas, la clave JWT y el administrador
+docker compose up --build --wait
+```
 
-   _(La primera vez puede tardar unos minutos descargando las dependencias de Maven y Pip)._
+La primera vez tarda unos minutos descargando las dependencias de Maven y pip. `--wait` termina cuando los tres servicios responden a su chequeo de salud.
 
-3. Verificar Estado:  
-   Una vez que veas los logs de Spring Boot y Uvicorn, el sistema está listo.
+## **🔌 Puntos de Acceso**
 
-## **🔌 Puntos de Acceso (Endpoints)**
+| Servicio | URL local | Descripción |
+| :--- | :--- | :--- |
+| **Backend API Docs** | <http://localhost:8080/swagger-ui.html> | Swagger UI para probar los endpoints de clientes y préstamos |
+| **Risk Engine Docs** | <http://localhost:8000/docs> | Swagger UI del motor de IA (Python) |
+| **Base de Datos** | `localhost:3307` | Usuario `nexus` con la contraseña `MYSQL_PASSWORD` de `.env` |
 
-| Servicio             | URL Local                                                                                                      | Descripción                                                        | Credenciales            |
-| :------------------- | :------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------- | :---------------------- |
-| **Backend API Docs** | [http://localhost:8080/swagger-ui.html](https://www.google.com/search?q=http://localhost:8080/swagger-ui.html) | Swagger UI para probar endpoints de Clientes y Préstamos.          | \-                      |
-| **Risk Engine Docs** | [http://localhost:8000/docs](https://www.google.com/search?q=http://localhost:8000/docs)                       | Swagger UI del motor de IA (Python).                               | \-                      |
-| **Base de Datos**    | localhost:3307                                                                                                 | Conexión directa a MySQL (Mapeado al 3307 para evitar conflictos). | User: root / Pass: root |
+Los puertos se publican solo en `127.0.0.1`. Si ya están ocupados, `BACKEND_PORT`, `RISK_ENGINE_PORT` y `DB_PORT` en `.env` los cambian.
 
-## **🧪 Flujo de Prueba Sugerido (End-to-End)**
+## **🔐 Quién Puede Hacer Qué**
 
-Para verificar la integración entre Java y Python:
+El registro público (`POST /api/v1/authentication/sign-up`) crea siempre clientes. El administrador, que aprueba préstamos y gestiona clientes, se crea al arrancar con `NEXUS_ADMIN_USERNAME` y `NEXUS_ADMIN_PASSWORD`. Cada cliente ve y modifica solo su perfil y sus préstamos. El detalle está en el README de [nexus-backend-core](https://github.com/nexus-fintech/nexus-backend-core).
 
-1. **Crear Cliente (Java):**
-   - POST /api/v1/clients \-\> Crea un perfil básico.
-2. **Solicitar Préstamo (Java):**
-   - POST /api/v1/loans \-\> Crea una solicitud con estado REQUESTED.
-3. **Aprobar Préstamo (Java \-\> Python \-\> Java):**
-   - POST /api/v1/loans/{id}/approve
-   - **Body:** { "monthlyIncome": 5000, "monthlyDebt": 200, "clientAge": 30 }
-   - _Resultado:_ El Backend llamará al Risk Engine. Si Python aprueba, Java calculará las cuotas y devolverá el préstamo ACTIVE.
+## **🧪 Prueba de Punta a Punta**
 
-## **🛠️ Configuración del Entorno (Variables)**
+`scripts/smoke_test.py` recorre la plataforma levantada como lo harían un cliente y un analista:
 
-El archivo docker-compose.yml gestiona la configuración de red automáticamente.
+1. Un cliente se registra pidiendo ser administrador: queda como cliente. Un cuerpo inválido responde `400`.
+2. Crea su perfil y pide un préstamo, que queda `REQUESTED`.
+3. Intenta aprobarlo él mismo: `403`.
+4. El administrador lo aprueba: el backend consulta al motor de riesgo, el préstamo queda `ACTIVE` y el cliente ve su cronograma de 6 cuotas.
 
-- **Sobrescritura de URLs:**
-  - SPRING_DATASOURCE_URL: Apunta automáticamente al contenedor nexus-db.
-  - RISK_ENGINE_URL: Apunta automáticamente a http://nexus-risk-engine:8000.
+```bash
+export NEXUS_ADMIN_USERNAME=... NEXUS_ADMIN_PASSWORD=...   # los mismos de .env
+python scripts/smoke_test.py http://localhost:8080
+```
 
-_No es necesario configurar archivos .env manualmente para la prueba local._
+La CI (GitHub Actions) levanta la plataforma con la rama `main` de cada servicio y corre esta prueba en cada push y cada lunes: los servicios cambian en sus propios repositorios y así se comprueba que sigan encajando.
+
+## **🛠️ Configuración (.env)**
+
+| Variable | Para qué |
+| :--- | :--- |
+| `MYSQL_ROOT_PASSWORD` | Contraseña de root de MySQL, solo para administrar |
+| `MYSQL_PASSWORD` | Contraseña del usuario `nexus`, con el que entra el backend |
+| `JWT_SECRET` | Firma los tokens de sesión: 32 caracteres aleatorios o más (`openssl rand -hex 32`) |
+| `NEXUS_ADMIN_USERNAME`, `NEXUS_ADMIN_PASSWORD` | Primer administrador |
+| `CORS_ALLOWED_ORIGINS` | Origen del frontend; por defecto `http://localhost:4200` |
+| `BACKEND_PORT`, `RISK_ENGINE_PORT`, `DB_PORT` | Puertos en tu PC, si 8080, 8000 o 3307 están ocupados |
+
+Dentro de la red de Compose, el backend llega a la base y al motor por sus nombres de servicio (`nexus-db`, `nexus-risk-engine`).
 
 ## **👤 Autor**
 
-**Angel Antonio Cancho Corilla** \- _Ingeniero de Software Full Stack_
+**Angel Antonio Cancho Corilla** - _Ingeniero de Software Full Stack_
