@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # The services change in their own repositories: every Monday, check they still fit together
+  schedule:
+    - cron: "0 12 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Plataforma de punta a punta
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # Throwaway values for a platform that only lives during this job
+      MYSQL_ROOT_PASSWORD: root-ci-${{ github.run_id }}
+      MYSQL_PASSWORD: nexus-ci-${{ github.run_id }}
+      JWT_SECRET: solo-para-la-ci-${{ github.run_id }}-0123456789abcdef
+      NEXUS_ADMIN_USERNAME: admin-ci
+      NEXUS_ADMIN_PASSWORD: admin-ci-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Backend core (rama main)
+        uses: actions/checkout@v7
+        with:
+          repository: nexus-fintech/nexus-backend-core
+          path: nexus-backend-core
+
+      - name: Motor de riesgo (rama main)
+        uses: actions/checkout@v7
+        with:
+          repository: nexus-fintech/nexus-risk-engine
+          path: nexus-risk-engine
+
+      - name: Levantar la plataforma
+        run: docker compose up --build --detach --wait --wait-timeout 600
+
+      - name: Recorrido de punta a punta
+        run: python3 scripts/smoke_test.py http://localhost:8080
+
+      - name: Registros de la plataforma
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Apagar
+        if: always()
+        run: docker compose down -v
