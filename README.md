@@ -50,6 +50,8 @@ docker compose up --build --wait
 
 La primera vez tarda unos minutos descargando las dependencias de Maven y pip. `--wait` termina cuando los tres servicios responden a su chequeo de salud.
 
+Si ya tienes los servicios clonados en otra carpeta, por ejemplo junto a esta, no hace falta clonarlos de nuevo: `BACKEND_DIR` y `RISK_ENGINE_DIR` en `.env` apuntan a ellos (`../nexus-backend-core`, `../nexus-risk-engine`).
+
 ## **🔌 Puntos de Acceso**
 
 | Servicio | URL local | Descripción |
@@ -90,6 +92,7 @@ La CI (GitHub Actions) levanta la plataforma con la rama `main` de cada servicio
 | `NEXUS_ADMIN_USERNAME`, `NEXUS_ADMIN_PASSWORD` | Primer administrador |
 | `CORS_ALLOWED_ORIGINS` | Origen del frontend; por defecto `http://localhost:4200` |
 | `BACKEND_PORT`, `RISK_ENGINE_PORT`, `DB_PORT` | Puertos en tu PC, si 8080, 8000 o 3307 están ocupados |
+| `BACKEND_DIR`, `RISK_ENGINE_DIR` | Carpetas de los servicios, si no están clonados dentro de esta |
 
 Dentro de la red de Compose, el backend llega a la base y al motor por sus nombres de servicio (`nexus-db`, `nexus-risk-engine`).
 

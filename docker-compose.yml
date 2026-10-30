@@ -1,5 +1,6 @@
 # Nexus Finance: MySQL, el core bancario (Java) y el motor de riesgo (Python) en una red privada.
-# Los dos servicios se clonan dentro de esta carpeta (ver README). Todo secreto sale de .env.
+# Los dos servicios se clonan dentro de esta carpeta, o donde digan BACKEND_DIR y RISK_ENGINE_DIR
+# (ver README). Todo secreto sale de .env.
 
 services:
   # 1. Base de Datos (MySQL)
@@ -27,7 +28,7 @@ services:
 
   # 2. Risk Engine (Microservicio Python)
   nexus-risk-engine:
-    build: ./nexus-risk-engine
+    build: ${RISK_ENGINE_DIR:-./nexus-risk-engine}
     ports:
       - "127.0.0.1:${RISK_ENGINE_PORT:-8000}:8000"
     networks:
@@ -40,7 +41,7 @@ services:
 
   # 3. Backend Core (Spring Boot)
   nexus-backend:
-    build: ./nexus-backend-core
+    build: ${BACKEND_DIR:-./nexus-backend-core}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     depends_on:
